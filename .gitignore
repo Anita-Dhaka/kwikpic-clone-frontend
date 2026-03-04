@@ -1,0 +1,15 @@
+# Node
+node_modules
+dist
+build
+
+# Env files
+.env
+
+# Uploads / embeddings
+uploads/
+face_embeddings.pkl
+
+# OS
+.DS_Store
+Thumbs.db
