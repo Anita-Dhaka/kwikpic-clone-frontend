@@ -43,7 +43,7 @@ export async function uploadAlbum(filesArray) {
   })
 
   const response = await axios.post(
-    "http://localhost:8000/upload_album",
+    `${import.meta.env.VITE_HOST_URL}upload_album`,
     formData
   )
 
@@ -55,7 +55,7 @@ export async function matchSelfie(file) {
   formData.append("file", file); // "file" must match FastAPI parameter name
 
   try {
-    const response = await axios.post("http://localhost:8000/match_selfie", formData, {
+    const response = await axios.post(`${import.meta.env.VITE_HOST_URL}match_selfie`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -66,20 +66,3 @@ export async function matchSelfie(file) {
     console.error("Selfie match failed:", error.response?.data || error.message);
   }
 }
-
-// export async function matchSelfie(file) {
-//   const formData = new FormData();
-//   formData.append("file", file);
-
-//   try {
-//     const response = await axios.post("http://localhost:8000/match_selfie", formData, {
-//       headers: {
-//         "Content-Type": "multipart/form-data",
-//       },
-//     });
-//     console.log("Matched images:", response.data.matches);
-//     return response.data.matches;
-//   } catch (err) {
-//     console.error("Selfie match failed:", err.response?.data || err.message);
-//   }
-// }
