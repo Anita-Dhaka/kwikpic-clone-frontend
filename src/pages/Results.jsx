@@ -42,8 +42,12 @@ export default function Results() {
           const matchedPaths = await matchSelfie(selfie)
 
           // 🔥 extract ids
+          // const matchedIds = matchedPaths.map(path => {
+          //   const filename = path.split("\\").pop()
+          //   return filename.split("_")[0]
+          // })
           const matchedIds = matchedPaths.map(path => {
-            const filename = path.split("\\").pop()
+            const filename = path.split(/[/\\]/).pop()   // handles both / and \
             return filename.split("_")[0]
           })
 
