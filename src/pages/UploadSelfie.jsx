@@ -2,10 +2,15 @@ import { useNavigate } from 'react-router-dom'
 import { usePhoto } from '../context/PhotoContext'
 import DropZone from '../components/DropZone'
 import Stepper from '../components/Stepper'
+import { useRef, useState } from 'react'
 
 export default function UploadSelfie() {
   const navigate = useNavigate()
   const { selfie, setSelfie, eventPhotos } = usePhoto()
+
+  const [cameraOn, setCameraOn] = useState(false)
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
 
   // Guard: if no event photos, redirect back
   if (eventPhotos.length === 0) {
@@ -13,10 +18,59 @@ export default function UploadSelfie() {
     return null
   }
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      setCameraOn(true)
+
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+      }, 200)
+
+    } catch (err) {
+      console.error("Camera error:", err)
+    }
+  }
+
+  const captureSelfie = () => {
+    const canvas = canvasRef.current
+    const video = videoRef.current
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    const ctx = canvas.getContext("2d")
+
+    // Flip image horizontally (remove mirror effect in saved photo)
+    ctx.scale(-1, 1)
+    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
+
+    canvas.toBlob((blob) => {
+      const file = new File([blob], "selfie.jpg", { type: "image/jpeg" })
+      setSelfie(file)
+    }, "image/jpeg")
+
+    stopCamera()
+  }
+
+  const stopCamera = () => {
+    const video = videoRef.current
+
+    if (video && video.srcObject) {
+      const tracks = video.srcObject.getTracks()
+      tracks.forEach(track => track.stop())
+      video.srcObject = null
+    }
+
+    setCameraOn(false)
+  }
+
   const selfieUrl = selfie ? URL.createObjectURL(selfie) : null
 
   const handleFile = (files) => setSelfie(files[0])
-  console.log({selfie})
+  console.log({ selfie })
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 flex flex-col items-center animate-fade-in">
@@ -62,23 +116,70 @@ export default function UploadSelfie() {
             </p>
           </div>
         ) : (
-          <DropZone onFiles={handleFile} className="p-14 text-center">
-            <div className="flex flex-col items-center gap-4 pointer-events-none">
-              {/* Face icon */}
-              <div className="w-20 h-20 rounded-full bg-ink-700 border border-ink-600 flex items-center justify-center">
-                <svg className="w-9 h-9 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-display font-600 text-lg text-white" style={{ fontWeight: 600 }}>
-                  Drop your selfie here
-                </p>
-                <p className="text-amber-100 text-sm mt-1">A clear face photo gives best results</p>
-              </div>
+          // <DropZone onFiles={handleFile} className="p-14 text-center">
+          //   <div className="flex flex-col items-center gap-4 pointer-events-none">
+          //     {/* Face icon */}
+          //     <div className="w-20 h-20 rounded-full bg-ink-700 border border-ink-600 flex items-center justify-center">
+          //       <svg className="w-9 h-9 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          //         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          //           d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          //       </svg>
+          //     </div>
+          //     <div>
+          //       <p className="font-display font-600 text-lg text-white" style={{ fontWeight: 600 }}>
+          //         Drop your selfie here
+          //       </p>
+          //       <p className="text-amber-100 text-sm mt-1">A clear face photo gives best results</p>
+          //     </div>
+          //   </div>
+          // </DropZone>
+
+          <div className="flex flex-col gap-4">
+
+            {/* Upload */}
+            <DropZone onFiles={handleFile} className="p-10 text-center">
+              <p className="font-display text-lg text-white">
+                Upload a selfie
+              </p>
+              <p className="text-amber-100 text-sm mt-1">
+                Drag & drop or click
+              </p>
+            </DropZone>
+
+            {/* Camera Button */}
+            <button
+              onClick={startCamera}
+              className="btn-primary w-full"
+            >
+              Take Selfie
+            </button>
+
+          </div>
+        )}
+        {cameraOn && (
+          <div className="flex flex-col items-center gap-4 mt-6">
+
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-64 h-64 rounded-xl object-cover scale-x-[-1]"
+            />
+
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+
+            <div className="flex gap-4">
+              <button onClick={captureSelfie} className="btn-primary">
+                Capture
+              </button>
+
+              <button onClick={stopCamera} className="text-red-400">
+                Cancel
+              </button>
             </div>
-          </DropZone>
+
+          </div>
         )}
 
         {/* Tips */}
