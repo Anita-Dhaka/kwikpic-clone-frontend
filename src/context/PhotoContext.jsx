@@ -1,25 +1,14 @@
 import { createContext, useContext, useState } from 'react'
 
-// Context for sharing photo state across all pages
 const PhotoContext = createContext(null)
 
 export function PhotoProvider({ children }) {
-  // Step 1: event photos (array of File objects)
   const [eventPhotos, setEventPhotos] = useState([])
-  // Step 2: single selfie (File object)
   const [selfie, setSelfie] = useState(null)
-  // Step 3: matched results (array of { file, url })
   const [matchedPhotos, setMatchedPhotos] = useState([])
   const [albumUploaded, setAlbumUploaded] = useState(false)
-
-  /** Add new event photos, avoiding duplicates by name+size */
-  // const addEventPhotos = (files) => {
-  //   setEventPhotos((prev) => {
-  //     const existing = new Set(prev.map((f) => `${f.name}-${f.size}`))
-  //     const fresh = files.filter((f) => !existing.has(`${f.name}-${f.size}`))
-  //     return [...prev, ...fresh]
-  //   })
-  // }
+  // Returned by backend after /upload_album — required for /match_selfie
+  const [albumId, setAlbumId] = useState(null)
 
   const addEventPhotos = (files) => {
     setEventPhotos((prev) => {
@@ -33,24 +22,25 @@ export function PhotoProvider({ children }) {
             !existing.has(`${file.name}-${file.size}-${file.lastModified}`)
         )
         .map((file) => ({
+          // id is no longer sent to the backend — kept only for React keying
           id: crypto.randomUUID(),
-          file
+          file,
         }))
 
       return [...prev, ...fresh]
     })
   }
 
-  /** Remove a single event photo by index */
   const removeEventPhoto = (index) => {
     setEventPhotos((prev) => prev.filter((_, i) => i !== index))
   }
 
-  /** Clear everything — used when restarting the flow */
   const resetAll = () => {
     setEventPhotos([])
     setSelfie(null)
     setMatchedPhotos([])
+    setAlbumUploaded(false)
+    setAlbumId(null)
   }
 
   return (
@@ -65,7 +55,9 @@ export function PhotoProvider({ children }) {
         setMatchedPhotos,
         resetAll,
         albumUploaded,
-        setAlbumUploaded
+        setAlbumUploaded,
+        albumId,
+        setAlbumId,
       }}
     >
       {children}

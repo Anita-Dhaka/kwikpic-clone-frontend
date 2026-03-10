@@ -1,68 +1,66 @@
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+
+// ------------------------
+// Upload Album
+// ------------------------
+
 /**
- * Simulates a face-matching API call.
- * Randomly selects 5–10 photos from the event album after a fake network delay.
+ * Sends image files to /upload_album.
+ * Backend generates all IDs — frontend sends only files.
+ * Returns { album_id } from the backend.
  *
- * @param {File[]} eventPhotos - All uploaded event photos
- * @param {File}   selfie      - The user's selfie (unused in mock, but mirrors real API signature)
- * @returns {Promise<{file: File, url: string}[]>}
+ * @param {Array<{ file: File }>} eventPhotos
+ * @returns {Promise<{ album_id: string }>}
  */
-export function mockFaceMatch(eventPhotos, selfie) {
-  return new Promise((resolve) => {
-    // Simulate network latency (1.5 – 3 seconds)
-    const delay = 1500 + Math.random() * 1500
-
-    setTimeout(() => {
-      // Randomly decide how many matches to return (5 to 10, capped at total)
-      const maxMatches = Math.min(eventPhotos.length, 10)
-      const minMatches = Math.min(eventPhotos.length, 5)
-      const count = Math.floor(Math.random() * (maxMatches - minMatches + 1)) + minMatches
-
-      // Fisher-Yates shuffle, then slice
-      const shuffled = [...eventPhotos].sort(() => Math.random() - 0.5)
-      const selected = shuffled.slice(0, count)
-
-      // Convert Files to object URLs for display
-      const results = selected.map((file) => ({
-        file,
-        url: URL.createObjectURL(file),
-      }))
-
-      resolve(results)
-    }, delay)
-  })
-}
-
-import axios from "axios";
-
-export async function uploadAlbum(filesArray) {
+export async function uploadAlbum(eventPhotos) {
   const formData = new FormData()
 
-  filesArray.forEach(photo => {
+  for (const photo of eventPhotos) {
     formData.append("files", photo.file)
-    formData.append("ids", photo.id) 
+  }
+
+  const response = await fetch(`${BASE_URL}/upload_album`, {
+    method: "POST",
+    body: formData,
   })
 
-  const response = await axios.post(
-    `${import.meta.env.VITE_HOST_URL}upload_album`,
-    formData
-  )
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || "Failed to upload album")
+  }
 
-  return response.data
+  const data = await response.json()
+  return data // { album_id, uploaded, files }
 }
 
-export async function matchSelfie(file) {
-  const formData = new FormData();
-  formData.append("file", file); // "file" must match FastAPI parameter name
 
-  try {
-    const response = await axios.post(`${import.meta.env.VITE_HOST_URL}match_selfie`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    console.log("Matched images:", response.data.matches);
-    return response.data.matches;
-  } catch (error) {
-    console.error("Selfie match failed:", error.response?.data || error.message);
+// ------------------------
+// Match Selfie
+// ------------------------
+
+/**
+ * Sends selfie + album_id to /match_selfie.
+ * Returns array of match objects: { album_id, image_name, image_url, score }
+ *
+ * @param {File} selfieFile
+ * @param {string} albumId
+ * @returns {Promise<Array<{ album_id: string, image_name: string, image_url: string, score: number }>>}
+ */
+export async function matchSelfie(selfieFile, albumId) {
+  const formData = new FormData()
+  formData.append("file", selfieFile)
+  formData.append("album_id", albumId)
+
+  const response = await fetch(`${BASE_URL}/match_selfie`, {
+    method: "POST",
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || "Failed to match selfie")
   }
+
+  const data = await response.json()
+  return data.matches // [{ album_id, image_name, image_url, score }]
 }
